@@ -1,0 +1,19 @@
+.info-content{
+    /*background-color: #61dafb;*/
+    /*border: #282c34;*/
+    margin:2vh 2vw 2vh 2vw;
+    width: 79.5vw;
+    height: 75vh;
+    font-size: 1.5vmin;
+    overflow-y:auto ;
+    scroll-behavior: smooth;
+    display: block;
+}
+.info-content::-webkit-scrollbar {
+    width: 1vmin;
+}
+
+.formContainer{
+    height: 65vh;
+}
+
