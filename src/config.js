@@ -1,9 +1,20 @@
+const DEBUG = true
+
 const ROLES = {
-    'SECRETARY': 1, 'PROJECT_WORKER': 2, 'PROJECT_SPONSOR': 3, 'APPROVAL_LEADER': 4, 'ADMIN': 5, 'DEV': 6, 'ANON': -1
+    SECRETARY: {value: 1, name: '商务秘书'},
+    PROJECT_WORKER: {value: 2, name: '项目参与者'},
+    PROJECT_SPONSOR: {value: 3, name: '项目负责人'},
+    APPROVAL_LEADER: {value: 4, name: '分管领导'},
+    ADMIN: {value: 5, name: '管理员'},
+    DEV: {value: 6, name: '开发人员'},
+    LEADER: {value: 7, name: '领导'},
+    ANON: {value: -1, name: '游客'}
 }
 
 const DATA_CODES = {
-    'CREATE_PROJECT': 'create-project', 'PROJECT_LIST': 'project-list'
+    CREATE_PROJECT: 'create-project',
+    PROJECT_LIST: 'project-list',
+    PROJECT_DETAIL: 'project-detail'
 }
 
 const PROJECT_TYPES = [
@@ -34,4 +45,5 @@ const PROJECT_TEAM = [
     {value: 11, label: '综合管理'},
 ]
 
-export {ROLES, DATA_CODES, PROJECT_TYPES, PROJECT_CATE, PROJECT_TEAM};
+
+export {ROLES, DATA_CODES, PROJECT_TYPES, PROJECT_CATE, PROJECT_TEAM, DEBUG};

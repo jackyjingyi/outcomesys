@@ -7,18 +7,21 @@
     margin: 0;
 }
 .leftSidebar{
-    background-color: aliceblue;
+    background-color: #e3e3e3;
 }
-
+.leftMenuLink{
+    font-size: 28px;
+    color: black;
+}
 .topNavbar {
-    width: 99.5vw;
+    /*width: 99.5vw;*/
     height: 10vh;
-    background-color: antiquewhite;
+    /*background-color: antiquewhite;*/
 }
 
 .appLogo {
-    height: 10vh;
-    width: 20vw;
+    height: 10vmin;
+    width: 10vmin;
 }
 
 .userInfo {
@@ -31,23 +34,29 @@
 }
 .rightPanel {
     padding: 0;
+
 }
 
 .infoPanel {
     height: 80vh;
-    background-color: azure;
+    /*background-color: azure;*/
+    overflow-y:auto ;
+    scroll-behavior: smooth;
+    display: block;
 }
 
 .mainPanel {
-    height: 90vh;
-    width: 100vw;
+    /*height: 90vh;*/
+    /*width: 100vw;*/
 }
 
 .innerFooter {
     height: 8vh;
-    background-color: beige;
+    /*background-color: beige;*/
 }
-
+.description {
+    font-size: xx-small;
+}
 @media (prefers-reduced-motion: no-preference) {
     .App-logo {
         animation: App-logo-spin infinite 20s linear;

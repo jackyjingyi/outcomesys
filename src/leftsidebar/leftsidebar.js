@@ -1,4 +1,5 @@
 import {useEffect, useState} from "react";
+import {Link, Outlet} from "react-router-dom";
 import {ROLES} from "../config";
 
 export function LeftSidebar(props) {
@@ -8,16 +9,16 @@ export function LeftSidebar(props) {
 
     useEffect(() => {
         switch (role) {
-            case ROLES.SECRETARY:
+            case ROLES.SECRETARY.value:
                 setSidebarList(SecretarySideBar(props))
                 break
-            case ROLES.PROJECT_WORKER:
+            case ROLES.PROJECT_WORKER.value:
                 setSidebarList(MemberSideBar(props))
                 break
-            case ROLES.PROJECT_SPONSOR:
+            case ROLES.PROJECT_SPONSOR.value:
                 setSidebarList(Sponsor(props))
                 break
-            case ROLES.APPROVAL_LEADER:
+            case ROLES.APPROVAL_LEADER.value:
                 setSidebarList(Leader(props))
                 break
             default://-1 TODO: ADD DEV ADMIN
@@ -28,13 +29,18 @@ export function LeftSidebar(props) {
 
     return (
         <div>
-            {sidebarList}
+            <nav className={`nav flex-column`}>
+                <Link to={`/`}>abc</Link>
+                <Link to={`create-project`}>创建</Link>
+            </nav>
+            {/*{sidebarList}*/}
+            {/*<Outlet/>*/}
         </div>
     )
 }
 
 function SecretarySideBar(props) {
-    const requiredRole = ROLES.SECRETARY
+    const requiredRole = ROLES.SECRETARY.value
 
     function clickHandler(e) {
         props.setAction(e.target.dataset)
