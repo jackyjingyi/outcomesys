@@ -8,6 +8,7 @@ import '@fontsource/roboto/300.css';
 import '@fontsource/roboto/400.css';
 import '@fontsource/roboto/500.css';
 import '@fontsource/roboto/700.css';
+import $ from 'jquery'
 // local package
 import {getProject, getUserInfo} from './api'
 import jwt_decode from "jwt-decode";
@@ -30,7 +31,6 @@ import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import {styled} from '@mui/material/styles';
 import Grid from '@mui/material/Grid';
-import OutlinedInput from '@mui/material/OutlinedInput';
 import InputLabel from '@mui/material/InputLabel';
 import FormControl from '@mui/material/FormControl';
 import FilledInput from "@mui/material/FilledInput";
@@ -38,31 +38,28 @@ import Backdrop from '@mui/material/Backdrop';
 import TextField from '@mui/material/TextField';
 import CircularProgress from '@mui/material/CircularProgress';
 import Select from "react-select";
-import Snackbar from '@mui/material/Snackbar';
 import MuiAlert from '@mui/material/Alert';
 import CustomizedSnackbars from './components/alert'
 import Checkbox from '@mui/material/Checkbox';
-import {deepOrange, pink, green} from '@mui/material/colors';
+import {pink} from '@mui/material/colors';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
-import Divider from '@mui/material/Divider';
-import InboxIcon from '@mui/icons-material/Inbox';
-import DraftsIcon from '@mui/icons-material/Drafts';
 import HomeIcon from '@mui/icons-material/Home';
 import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
 import AddTaskIcon from '@mui/icons-material/AddTask';
 import ApprovalIcon from '@mui/icons-material/Approval';
 import DeveloperModeIcon from '@mui/icons-material/DeveloperMode';
 import BugReportIcon from '@mui/icons-material/BugReport';
-import Avatar from '@mui/material/Avatar';
 import Stack from '@mui/material/Stack';
 import axios from "axios";
 import {DEBUG} from './config';
 import BadgeAvatars from './components/avatar'
-
+import ControlledAccordions from "./components/accordion";
+import ErrorBoundary from "./components/ErrorBoundary";
+import ApprovalList from "./components/approvalList";
 
 const Item = styled(Paper)(({theme}) => ({
     backgroundColor: theme.palette.mode === 'dark' ? '#1A2027' : '#fff', ...theme.typography.body2,
@@ -140,7 +137,7 @@ function App() {
                 <Route path={``} element={<Achievements/>}/>
             </Route>
             <Route path={`/create-project`} element={<CreateProjectForm {...data} user={user}/>}/>
-            <Route path={`/approval-center`} element={<div>审核中心(仅负责人、分管领导）</div>}/>
+            <Route path={`/approval-center`} element={<ApprovalList/>}/>
             <Route path={`/user-management`} element={<div>开发中</div>}/>
             <Route path={`/dev`} element={<Dev/>}/>
             <Route path={`/role`} element={<RoleChange/>}/>
@@ -261,7 +258,8 @@ function RoleChange() {
 function PanelManager(props) {
 
     const location = useLocation()
-    const [badgeInvisible, setBadgeInvisible] = useState(false)
+    const navigate = useNavigate()
+    const [badgeInvisible, setBadgeInvisible] = useState(true)
 
     const sidemenu = () => {
         if (props.user) {
@@ -281,9 +279,20 @@ function PanelManager(props) {
         return null
     }
 
+    useEffect(() => {
+        if (props.user) {
+            API.get(`v1/project-system/task/user-has-missions/`).then((res) => {
+                if (res.data.exists) {
+                    setBadgeInvisible(false)
+                }
+            })
+        }
+    }, [props.user])
+
     function avatarClickHandler() {
         // 更改为检查是否有task待处理
-        setBadgeInvisible(!badgeInvisible)
+        setBadgeInvisible(true)
+        navigate(`/approval-center`)
     }
 
     return (<div className={`container-fluid`}>
@@ -634,15 +643,23 @@ function AchievementDetail() {
     // 2. can change \ submit \ withdraw
     const params = useParams()
     const navigate = useNavigate()
+    const commentTextField = useRef(null)
     const user = JSON.parse(window.localStorage.getItem('user'))
     const [isDisabled, setIsDisabled] = useState(true)
     // modal controller
     const [openFormModal, setOpenFormModal] = useState(false)
     const [openSubmitModal, setOpenSubmitModal] = useState(false)
     const [openBasicModal, setOpenBasicModal] = useState(false)
-    const [basicComments, setBasicComments] = useState('')
+    const [basicComments, setBasicComments] = useReducer((basicComments, newBasicComments) => ({...basicComments, ...newBasicComments}),
+        {
+            comments: ''
+        }
+    )
     const [basicModalTitle, setBasicModalTitle] = useState('')
     const [basicModalChecked, setBasicModalChecked] = useState(false)
+    const [openDeleteModal, setOpenDeleteModal] = useState(false)
+    const [deleteFileTarget, setDeleteFileTarget] = useState(-1)
+    const [confirmMsg, setConfirmMsg] = useState('')
     const [basicModalButtonDisabled, setBasicModalButtonDisabled] = useState(true)
     const [basicModalConfirmButton, setBasicModalConfirmButton] = useState(null)
 
@@ -701,6 +718,7 @@ function AchievementDetail() {
         approve_achievement_lv2: -1,
         final_review_achievement: -1,
     })
+    const [log, setLog] = useState(null)
     useEffect(() => {
         // 首先获取 Achievement的基本信息
         API.get(`v1/project-system/achievement/${params.achievementID}`).then((res) => {
@@ -737,7 +755,14 @@ function AchievementDetail() {
                 approve_achievement_lv2: res.data.includes(`approve_achievement_lv2`) ? 1 : 0,
                 final_review_achievement: res.data.includes(`final_review_achievement`) ? 1 : 0,
             })
-
+            return API.post(`v1/project-system/process/get-process-by-achievement/`, {
+                achievement_id: params.achievementID
+            })
+        }).then((res) => {
+            console.log(res)
+            setLog(res.data)
+        }).catch((err) => {
+            console.log(err)
         })
     }, [params.achievementID, needRefresh])
 
@@ -815,12 +840,51 @@ function AchievementDetail() {
 
     function handleDownload(e, i) {
         // 文件下载
+        // 1. 有change_achievement\approve_achievement_*权限时可以进行下载
         console.log(e, i)
-        const fileID = i
+        // i 文件pk
+        // todo 跳出提示<正在检查权限...>
+        API.get(`v1/project-system/file/${i}/get_file_url`).then((res) => {
+            console.log(res)
+            window.open(res.data.file_url)
+        }).catch((err) => {
+            console.log(err)
+        })
     }
 
-    function handleDelete() {
+    function deleteFile() {
+        if (deleteFileTarget !== -1) {
+            API.delete(`v1/project-system/file/${deleteFileTarget}`).then((res) => {
+                console.log(res)
+                setLoading(false)
+                setAlertType('success')
+                setAlertMsg('文件删除成功！')
+                setAlertOpen(true)
+                setNeedRefresh()
+            }).catch((err) => {
+                console.log(err)
+                setLoading(false)
+                setAlertType('error')
+                setAlertMsg(err.response.data)
+                setAlertOpen(true)
+                setNeedRefresh()
+            }).finally(() => {
+                setTimeout(() => {
+                    setOpenDeleteModal(false)
+                }, 1500)
+            })
+        }
+
+    }
+
+    function handleDelete(e, i) {
         // 文件删除
+        console.group(`Delete file id ${i}`)
+        // call alert
+        setDeleteFileTarget(i)
+        setConfirmMsg('文件删除后将无法恢复，确认吗？')
+        setOpenDeleteModal(true)
+
     }
 
     function handleFileChange() {
@@ -951,10 +1015,12 @@ function AchievementDetail() {
         setModalLock(true)
         setOpenBasicModal(false)
         setLoading(true)
+        let abc = $(commentTextField.current).find(`#comments`).val()
         console.group('put withdraw start')
         console.log(basicComments)
+        console.log(commentTextField.current)
         API.put(`v1/project-system/achievement/${params.achievementID}/withdraw/`, {
-            comments: basicComments
+            comments: abc
         }).then((res) => {
             console.log(res)
             setLoading(false)
@@ -965,7 +1031,7 @@ function AchievementDetail() {
         }).catch((err) => {
             setLoading(false)
             setAlertType('error')
-            setAlertMsg(err.response.data.msg)
+            // setAlertMsg(err.response.errors)
             setAlertOpen(true)
             console.log(err)
         }).finally(() => {
@@ -1020,12 +1086,14 @@ function AchievementDetail() {
 
     function approveAchievementFirst() {
         console.group('Approval Stage1 Start')
+
         console.log(`Approval1`)
-        console.log(approvalForm.level)
+        console.log(basicComments)
+        console.log(commentTextField.current.value)
         setOpenBasicModal(false)
         // level should equal to 1
         API.put(`v1/project-system/achievement/${params.achievementID}/approve/`, {
-            comments: basicComments
+            comments: $(commentTextField.current).find(`#comments`).val()
         }).then((res) => {
             console.log(res)
             setLoading(false)
@@ -1041,7 +1109,7 @@ function AchievementDetail() {
             setAlertOpen(true)
         }).finally(() => {
             setModalLock(false)
-            setBasicComments('')
+            // setBasicComments('')
         })
         console.groupEnd()
     }
@@ -1063,7 +1131,32 @@ function AchievementDetail() {
     }
 
     function denyAchievementFirst() {
-        console.log('Deny1')
+        console.group('Deny Stage1 Start')
+        console.log(`Deny1`)
+        console.log(approvalForm.level)
+        setOpenBasicModal(false)
+        // level should equal to 1
+        API.put(`v1/project-system/achievement/${params.achievementID}/deny/`, {
+            comments: $(commentTextField.current).find(`#comments`).val()
+        }).then((res) => {
+            console.log(res)
+            setLoading(false)
+            setAlertType('success')
+            setAlertMsg('已驳回！')
+            setAlertOpen(true)
+            setNeedRefresh()
+        }).catch((err) => {
+            console.log(err)
+            setLoading(false)
+            setAlertType('error')
+            setAlertMsg(err.response.data.msg)
+            setAlertOpen(true)
+        }).finally(() => {
+            setModalLock(false)
+            setBasicComments('')
+        })
+        console.groupEnd()
+
     }
 
     function denyAchievementFirstHandler() {
@@ -1082,8 +1175,9 @@ function AchievementDetail() {
     function approveAchievementSecond() {
         console.log(`approve 2`)
         setOpenBasicModal(false)
+        console.log(commentTextField.current)
         API.put(`v1/project-system/achievement/${params.achievementID}/approve/`, {
-            comments: basicComments
+            comments: $(commentTextField.current).find(`#comments`).val()
         }).then((res) => {
             console.log(res)
             setLoading(false)
@@ -1119,7 +1213,31 @@ function AchievementDetail() {
     }
 
     function denyAchievementSecond() {
-        console.log(`deny 2`)
+        console.group('Deny Stage2 Start')
+        console.log(`Deny2`)
+        console.log(approvalForm.level)
+        setOpenBasicModal(false)
+        // level should equal to 1
+        API.put(`v1/project-system/achievement/${params.achievementID}/deny/`, {
+            comments: $(commentTextField.current).find(`#comments`).val()
+        }).then((res) => {
+            console.log(res)
+            setLoading(false)
+            setAlertType('success')
+            setAlertMsg('已驳回！')
+            setAlertOpen(true)
+            setNeedRefresh()
+        }).catch((err) => {
+            console.log(err)
+            setLoading(false)
+            setAlertType('error')
+            setAlertMsg(err.response.data.msg)
+            setAlertOpen(true)
+        }).finally(() => {
+            setModalLock(false)
+            setBasicComments('')
+        })
+        console.groupEnd()
     }
 
     function denyAchievementSecondHandler() {
@@ -1263,11 +1381,11 @@ function AchievementDetail() {
                             </div>}
                         </form>
                     </div>
-                    <div className={`col-md-4 border`}>
-                        这里不能修改<br/>
-                        {/*项目名称： {`  `} {project.project_title}*/}
-                        <br/>other attributes
-                        <br/>todo: 文件信息
+                    <div className={`col-md-4 border logPanel`}>
+                        <ErrorBoundary>
+                            {log ? <ControlledAccordions log={log}/> : null}
+                        </ErrorBoundary>
+
                     </div>
                 </div>
                 <div className={`row m-3 border`} key={`filePanel`}>
@@ -1318,12 +1436,16 @@ function AchievementDetail() {
                                         </IconButton>
 
                                         <IconButton aria-label="download" size={`small`}
-                                                    onClick={(e) => handleDownload(e, item.id)}>
+                                                    onClick={(e) => handleDownload(e, item.id)}
+                                                    disabled={!(permissions.change_achievement === 1 || permissions.approve_achievement_lv1 === 1 || permissions.approve_achievement_lv2 === 1)}
+                                        >
                                             <DownloadIcon fontSize="inherit"/>
                                         </IconButton>
 
                                         <IconButton aria-label="delete" size={`small`}
-                                                    onClick={handleDelete}>
+                                                    onClick={(e) => handleDelete(e, item.id)}
+                                                    disabled={permissions.change_achievement !== 1}
+                                        >
                                             <DeleteIcon fontSize="inherit"/>
                                         </IconButton>
                                     </td>
@@ -1523,7 +1645,6 @@ function AchievementDetail() {
                                             </Button>
                                         </ButtonGroup>
                                     </Grid>
-
                                 </Grid>
                             </Box>
                         </SubmitModal>
@@ -1538,13 +1659,15 @@ function AchievementDetail() {
                                 <Grid item xs={12}>
                                     <FormControl fullWidth sx={{m: 1}}>
                                         <TextField
+                                            ref={commentTextField}
                                             id="comments"
                                             label="备注"
                                             placeholder="输入简短备注"
                                             multiline
-                                            value={basicComments}
+                                            value={basicComments.comments}
                                             onChange={(e) => {
-                                                setBasicComments(e.target.value)
+                                                setBasicComments(
+                                                    {comments: e.target.value})
                                             }}
                                             variant={`standard`}
                                             minRows={5}
@@ -1552,24 +1675,6 @@ function AchievementDetail() {
                                         />
                                     </FormControl>
                                 </Grid>
-                                {/*<Grid item xs={12}>*/}
-                                {/*    <Checkbox className={`float-start`} sx={{*/}
-                                {/*        color: pink[800],*/}
-                                {/*        '&.Mui-checked': {*/}
-                                {/*            color: pink[600],*/}
-                                {/*        },*/}
-                                {/*    }}*/}
-                                {/*              checked={basicModalChecked}*/}
-                                {/*              onChange={(e) => {*/}
-                                {/*                  setBasicModalChecked(*/}
-                                {/*                      e.target.checked*/}
-                                {/*                  )*/}
-                                {/*              }}*/}
-                                {/*    /><Typography align={`left`} className={`float-start mt-2 p-1`} color={`error`}*/}
-                                {/*                  variant={`body2`}>*/}
-                                {/*    我确认删除后，该成果下的所有内容与文件会一同删除，且无法恢复。*/}
-                                {/*</Typography>*/}
-                                {/*</Grid>*/}
                                 <Grid item xs={12}>
                                     <ButtonGroup className={`float-end`} variant={`contained`} size={`small`}
                                                  color={`primary`}>
@@ -1587,11 +1692,49 @@ function AchievementDetail() {
                             </Grid>
                         </Box>
                     </StandardModal>
+                    <StandardModal open={openDeleteModal} setParentOpen={setOpenDeleteModal}>
+                        <Typography id="modal-modal-title" variant="h6" component="h2" align={`center`}>
+                            确认删除文件吗？
+                        </Typography>
+                        <Box>
+                            <Grid container spacing={2}>
+                                <Grid item xs={12}>
+                                    <Checkbox className={`float-start`} sx={{
+                                        color: pink[800], '&.Mui-checked': {
+                                            color: pink[600],
+                                        },
+                                    }}
+                                              checked={basicModalChecked}
+                                              onChange={(e) => {
+                                                  setBasicModalChecked(e.target.checked)
+                                              }}
+                                    /><Typography align={`left`} className={`float-start mt-2 p-1`} color={`error`}
+                                                  variant={`body2`}>
+                                    {confirmMsg}
+                                </Typography>
+                                </Grid>
+                                <Grid item xs={12}>
+                                    <ButtonGroup className={`float-end`} variant={`contained`} size={`small`}
+                                                 color={`primary`}>
+                                        {/*todo add submit function*/}
+                                        <Button onClick={deleteFile}
+                                                disabled={!basicModalChecked}
+                                        >确认</Button>
+                                        <Button onClick={() => {
+                                            setOpenBasicModal(false)
+                                        }}
+                                        >
+                                            取消
+                                        </Button>
+                                    </ButtonGroup>
+                                </Grid>
+                            </Grid>
+                        </Box>
+                    </StandardModal>
                     <div>
-                        <Backdrop
-                            sx={{color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1}}
-                            open={loading}
-                            // onClick={handleClose}
+                        <Backdrop className={`loader`}
+                                  sx={{color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1}}
+                                  open={loading}
                         >
                             <CircularProgress color="inherit"/>
                         </Backdrop>
